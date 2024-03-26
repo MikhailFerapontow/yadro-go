@@ -25,10 +25,6 @@ func InitStemmer() *Stemmer {
 
 	stopWordsList := strings.Fields(string(file))
 
-	// // После Split на конце строк остался '\n'. Удаляем его.
-	// for i, line := range stopWordsList {
-	// 	stopWordsList[i] = strings.TrimSpace(line) // наверное это можно сделать проще
-	// }
 	return &Stemmer{stopWordsList: stopWordsList}
 }
 
