@@ -23,12 +23,12 @@ func InitStemmer() *Stemmer {
 		log.Fatalf("Error reading stop words file: %s", err.Error())
 	}
 
-	stopWordsList := strings.Split(string(file), "\n")
+	stopWordsList := strings.Fields(string(file))
 
-	// После Split на конце строк остался '\n'. Удаляем его.
-	for i, line := range stopWordsList {
-		stopWordsList[i] = strings.TrimSpace(line) // наверное это можно сделать проще
-	}
+	// // После Split на конце строк остался '\n'. Удаляем его.
+	// for i, line := range stopWordsList {
+	// 	stopWordsList[i] = strings.TrimSpace(line) // наверное это можно сделать проще
+	// }
 	return &Stemmer{stopWordsList: stopWordsList}
 }
 
@@ -41,13 +41,18 @@ func (s *Stemmer) checkStopWord(target string) bool {
 	return false
 }
 
+func (s *Stemmer) trimPunctuation(target string) string {
+	return strings.Trim(target, ",.!?:;\"'()[]{}")
+}
+
 func (s *Stemmer) Stem(initialString string) string {
 	words := strings.Fields(initialString)
 	ans := []string{}
 	seenWords := make(map[string]bool)
 
 	for i := range words {
-		stemmed, err := snowball.Stem(words[i], "english", false)
+
+		stemmed, err := snowball.Stem(s.trimPunctuation(words[i]), "english", false)
 
 		if err != nil {
 			log.Fatalf("Internal error stemming word: %s", err.Error())

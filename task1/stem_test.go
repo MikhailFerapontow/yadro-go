@@ -24,6 +24,11 @@ func TestStemmer(t *testing.T) {
 			expectedAns:   "follow bring bunch question",
 		},
 		{
+			name:          "String with punctuation",
+			initialString: "follower, follow followers!",
+			expectedAns:   "follow",
+		},
+		{
 			name:          "String from task",
 			initialString: "i'll follow you as long as you are following me",
 			expectedAns:   "follow long",
