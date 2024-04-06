@@ -1,4 +1,4 @@
-package main
+package words
 
 import (
 	"log"
@@ -9,7 +9,7 @@ import (
 )
 
 type Stemmer struct {
-	stopWordsList []string
+	stopWordMap map[string]any
 }
 
 func InitStemmer() *Stemmer {
@@ -17,36 +17,40 @@ func InitStemmer() *Stemmer {
 		Оригинальный список стоп-слов из библиотеки snowball мал, поэтому решил взять данный список.
 		Взято отсюда https://countwordsfree.com/stopwords
 	*/
-	file, err := os.ReadFile("stop_words_english.txt")
+	file, err := os.ReadFile("pkg/words/stop_words_english.txt")
 
 	if err != nil {
 		log.Fatalf("Error reading stop words file: %s", err.Error())
 	}
 
-	stopWordsList := strings.Fields(string(file))
+	var stopWords = make(map[string]any)
 
-	return &Stemmer{stopWordsList: stopWordsList}
+	stopWordsList := strings.Fields(string(file))
+	for i, elem := range stopWordsList {
+		stopWords[elem] = i
+	}
+
+	return &Stemmer{stopWordMap: stopWords}
 }
 
 func (s *Stemmer) checkStopWord(target string) bool {
-	for _, stopWord := range s.stopWordsList {
-		if target == stopWord {
-			return true
-		}
-	}
-	return false
+	_, ok := s.stopWordMap[target]
+	return ok
 }
 
 func (s *Stemmer) trimPunctuation(target string) string {
-	return strings.Trim(target, ",.!?:;\"'()[]{}")
+	return strings.Trim(target, ",.!?:;\"'()[]{}#<>")
 }
 
-func (s *Stemmer) Stem(initialString string) string {
+func (s *Stemmer) Stem(initialString string) []string {
 	words := strings.Fields(initialString)
 	ans := []string{}
 	seenWords := make(map[string]bool)
 
 	for i := range words {
+		if len(words[i]) < 4 {
+			continue
+		}
 
 		stemmed, err := snowball.Stem(s.trimPunctuation(words[i]), "english", false)
 
@@ -67,5 +71,5 @@ func (s *Stemmer) Stem(initialString string) string {
 		seenWords[stemmed] = true
 		ans = append(ans, stemmed)
 	}
-	return strings.Join(ans, " ")
+	return ans
 }
