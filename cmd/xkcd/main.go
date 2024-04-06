@@ -33,6 +33,6 @@ func main() {
 	client.GetComics(comics_number)
 
 	if print_output {
-		client.PrintAllComics()
+		client.PrintAll()
 	}
 }

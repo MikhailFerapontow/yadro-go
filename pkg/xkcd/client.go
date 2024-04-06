@@ -41,39 +41,38 @@ func (c *Client) GetComics(n int) {
 		n = max_id
 	}
 
-	comics := make([]models.ResponseComics, n)
+	var comics []models.ResponseComics
 	for i := 1; i <= n; i++ {
 		query := fmt.Sprintf("%s/%d/info.0.json", c.url, i)
 		resp, err := c.httpClient.Get(query)
 		if err != nil {
-			log.Printf("Error getting comic: %s", err)
+			log.Printf("Error getting comic with id = %d: %s", i, err)
 			continue
 		}
 
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			log.Printf("Error getting comic: %s", resp.Status)
+			log.Printf("Error getting comic id = %d: %s", i, resp.Status)
 			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Printf("Error reading body: %s", err)
+			log.Printf("Error reading body of comics id = %d: %s", i, err)
 			continue
 		}
 
 		var comic models.ResponseComics
 		err = json.Unmarshal(body, &comic)
 		if err != nil {
-			log.Printf("Error unmarshaling comic: %s", err)
+			log.Printf("Error unmarshaling comic id = %d: %s", i, err)
 			continue
 		}
 
-		comics[i-1] = comic
-
-		c.db.Insert(comics)
+		comics = append(comics, comic) // хорошая ли идея?
 	}
+	c.db.Insert(comics)
 }
 
 func (c *Client) getLastComicId() (int, error) {
@@ -99,6 +98,6 @@ func (c *Client) getLastComicId() (int, error) {
 	return comic.Num, nil
 }
 
-func (c *Client) PrintAllComics() {
-	c.db.PrintAllComics()
+func (c *Client) PrintAll() {
+	c.db.PrintAll()
 }

@@ -9,3 +9,4 @@ test:
 
 clean:
 	rm myapp
+	rm database.json

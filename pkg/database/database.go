@@ -41,7 +41,7 @@ func (d *DbApi) Insert(comics []models.ResponseComics) {
 	file.Write(bytes)
 }
 
-func (d *DbApi) PrintAllComics() {
+func (d *DbApi) PrintAll() {
 	file, err := os.ReadFile(d.file_path)
 	if err != nil {
 		log.Printf("Error opening file: %s", err.Error())
