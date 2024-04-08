@@ -1,33 +1,30 @@
 package words
 
 import (
+	_ "embed"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/kljensen/snowball"
 )
 
+/*
+	Оригинальный список стоп-слов из библиотеки snowball мал, поэтому решил взять данный список.
+	Взято отсюда https://countwordsfree.com/stopwords
+*/
+//go:embed stop_words_english.txt
+var stopWordsEnglish string
+
 type Stemmer struct {
-	stopWordMap map[string]any
+	stopWordMap map[string]bool
 }
 
 func InitStemmer() *Stemmer {
-	/*
-		Оригинальный список стоп-слов из библиотеки snowball мал, поэтому решил взять данный список.
-		Взято отсюда https://countwordsfree.com/stopwords
-	*/
-	file, err := os.ReadFile("pkg/words/stop_words_english.txt")
+	var stopWords = make(map[string]bool)
 
-	if err != nil {
-		log.Fatalf("Error reading stop words file: %s", err.Error())
-	}
-
-	var stopWords = make(map[string]any)
-
-	stopWordsList := strings.Fields(string(file))
-	for i, elem := range stopWordsList {
-		stopWords[elem] = i
+	stopWordsList := strings.Fields(stopWordsEnglish)
+	for _, elem := range stopWordsList {
+		stopWords[elem] = true
 	}
 
 	return &Stemmer{stopWordMap: stopWords}
