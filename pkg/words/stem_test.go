@@ -1,13 +1,15 @@
-package main
+package words
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStemmer(t *testing.T) {
-	// 1. Написать тесты, которые состоят из изначальной строки и выходной строки
+	stemmer := InitStemmer()
+
 	tests := []struct {
 		name          string
 		initialString string
@@ -42,8 +44,8 @@ func TestStemmer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			ans := InitStemmer().Stem(test.initialString)
-			assert.Equal(t, test.expectedAns, ans)
+			ans := stemmer.Stem(test.initialString)
+			assert.Equal(t, test.expectedAns, strings.Join(ans, " "))
 		})
 	}
 }
