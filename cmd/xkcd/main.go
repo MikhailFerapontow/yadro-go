@@ -4,17 +4,15 @@ import (
 	"flag"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/config"
-	"github.com/MikhailFerapontow/yadro-go/pkg/database"
-	"github.com/MikhailFerapontow/yadro-go/pkg/xkcd"
+	"github.com/MikhailFerapontow/yadro-go/pkg/app"
 	"github.com/spf13/viper"
 )
 
 func main() {
 	var print_output bool
-	var comics_number int // используем zero value для получения всех комиксов
-	flag.BoolVar(&print_output, "o", false, "flag o prints result json into terminal")
-	flag.IntVar(&comics_number, "n", 0, "flag n prints n-th comic")
-
+	var comics_number int // я очень хотел использовать uint (но бесконечный каст типов)
+	flag.BoolVar(&print_output, "o", false, "flag -o prints result json into terminal")
+	flag.IntVar(&comics_number, "n", 0, "flag n prints up to n-th comic, WORKS ONLY WITH -o flag")
 	/*
 		ничего плохого не произойдёт из-за паники в этой функции,
 		ведь работа программы ещё не начата
@@ -28,11 +26,14 @@ func main() {
 		panic("n must be >= 0")
 	}
 
-	db := database.NewDbApi(viper.GetString("db_file"))
-	client := xkcd.NewCLient(viper.GetString("source_url"), db)
-	client.GetComics(comics_number)
+	app := app.InitApp(app.Config{
+		File_path: viper.GetString("db_file"),
+		Url:       viper.GetString("source_url"),
+	})
 
-	if print_output {
-		client.PrintAll()
+	app.GetComics()
+
+	if print_output && comics_number != 0 {
+		app.PrintAll(comics_number)
 	}
 }

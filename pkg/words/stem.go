@@ -63,5 +63,13 @@ func (s *Stemmer) Stem(initialString string) []string {
 		seenWords[stemmed] = true
 		ans = append(ans, stemmed)
 	}
+
+	/*
+		По хорошему нужно провести статистический анализ какие слова встречаются чаще всего
+		пока так сойдёт
+	*/
+	if len(ans) > 10 {
+		ans = ans[:10]
+	}
 	return ans
 }

@@ -1,6 +1,6 @@
 package models
 
-type ResponseComics struct {
+type ResponseComic struct {
 	Num        int    `json:"num"`
 	Transcript string `json:"transcript"`
 	Alt        string `json:"alt"`
