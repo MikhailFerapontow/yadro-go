@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"math"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/config"
 	"github.com/MikhailFerapontow/yadro-go/pkg/app"
@@ -12,7 +13,7 @@ func main() {
 	var print_output bool
 	var comics_number int // я очень хотел использовать uint (но бесконечный каст типов)
 	flag.BoolVar(&print_output, "o", false, "flag -o prints result json into terminal")
-	flag.IntVar(&comics_number, "n", 0, "flag n prints up to n-th comic, WORKS ONLY WITH -o flag")
+	flag.IntVar(&comics_number, "n", math.MaxInt, "flag n prints up to n-th comic, WORKS ONLY WITH -o flag")
 	/*
 		ничего плохого не произойдёт из-за паники в этой функции,
 		ведь работа программы ещё не начата
@@ -33,7 +34,7 @@ func main() {
 
 	app.GetComics()
 
-	if print_output && comics_number != 0 {
+	if print_output {
 		app.PrintAll(comics_number)
 	}
 }
