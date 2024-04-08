@@ -30,11 +30,6 @@ func InitStemmer() *Stemmer {
 	return &Stemmer{stopWordMap: stopWords}
 }
 
-func (s *Stemmer) checkStopWord(target string) bool {
-	_, ok := s.stopWordMap[target]
-	return ok
-}
-
 func (s *Stemmer) trimPunctuation(target string) string {
 	return strings.Trim(target, ",.!?:;\"'()[]{}#<>")
 }
@@ -56,7 +51,7 @@ func (s *Stemmer) Stem(initialString string) []string {
 		}
 
 		// Проверяем является ли слово стоп-словом
-		if s.checkStopWord(stemmed) {
+		if s.stopWordMap[stemmed] {
 			continue
 		}
 
