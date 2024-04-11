@@ -61,6 +61,28 @@ func (c *Client) GetComics() ([]models.ResponseComic, error) {
 	return comics, nil
 }
 
+func (c *Client) GetLastComic() (int, error) {
+	op := "op.get_last_comic"
+	l, r := 1, 10000
+	for l != r {
+		m := l + int((r-l)/2)
+		query := fmt.Sprintf("%s/%d/info.0.json", c.url, m)
+		resp, err := c.httpClient.Get(query)
+		if err != nil {
+			return -1, fmt.Errorf("%s: %s", op, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			r = m - 1
+		} else {
+			l = m
+		}
+	}
+	return l, nil
+}
+
+// Deprecated: use GetLastComic
 func (c *Client) GetLastComicId() (int, error) {
 	query := c.url + "/info.0.json"
 	resp, err := c.httpClient.Get(query)
