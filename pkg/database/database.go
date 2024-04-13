@@ -19,37 +19,24 @@ func NewDbApi(file_path string) *DbApi {
 	}
 }
 
-// func (d *DbApi) Insert(comics []models.DbComic) {
-
-// 	file, err := os.OpenFile(d.file_path, os.O_APPEND|os.O_WRONLY, 0644)
-// 	if err != nil {
-// 		log.Printf("Error creating file: %s", err.Error())
-// 		return
-// 	}
-// 	defer file.Close()
-
-// 	bytes, _ := json.MarshalIndent(comics, "", " ")
-// 	file.Write(bytes)
-// }
-
 func (d *DbApi) Insert(comics []models.DbComic) {
+	op := "op.insert"
+
 	text, err := os.ReadFile(d.file_path)
 	if err != nil {
-		log.Printf("Error opening file: %s", err.Error())
+		log.Printf("Error opening file: %s", err)
 		return
 	}
 
-	// getting existing comics
 	var db_comics []models.DbComic
 	if err := json.Unmarshal(text, &db_comics); err != nil {
-		log.Printf("Error unmarshaling json: %s", err.Error())
-		return
+		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
 	}
 
 	comics = append(comics, db_comics...)
 	file, err := os.Create(d.file_path)
 	if err != nil {
-		log.Printf("Error creating file: %s", err.Error())
+		log.Printf("Error creating file: %s", err)
 		return
 	}
 
@@ -58,14 +45,19 @@ func (d *DbApi) Insert(comics []models.DbComic) {
 }
 
 func (d *DbApi) GetExisting() map[int]bool {
-	file, err := os.ReadFile(d.file_path)
+	op := "op.get_existing_comics"
+
+	text, err := os.ReadFile(d.file_path)
 	if err != nil {
-		log.Fatalf("Error opening file: %s", err.Error())
+		log.Printf("%s:Error opening file: %s", op, err)
+		log.Printf("Creating file: %s", d.file_path)
+		os.Create(d.file_path)
+		return make(map[int]bool)
 	}
 
 	var db_comics []models.DbComic
-	if err := json.Unmarshal(file, &db_comics); err != nil {
-		log.Printf("Error unmarshaling json: %s", err.Error())
+	if err := json.Unmarshal(text, &db_comics); err != nil {
+		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
 		return make(map[int]bool)
 	}
 
@@ -80,19 +72,19 @@ func (d *DbApi) GetExisting() map[int]bool {
 func (d *DbApi) Print(n int) {
 	file, err := os.ReadFile(d.file_path)
 	if err != nil {
-		log.Printf("Error opening file: %s", err.Error())
+		log.Printf("Error opening file: %s", err)
 		return
 	}
 	var db_comics []models.DbComic
 	if err := json.Unmarshal(file, &db_comics); err != nil {
-		log.Printf("Error unmarshaling json: %s", err.Error())
+		log.Printf("Error unmarshaling json: %s", err)
 		return
 	}
 
 	for i := 0; i < n; i++ {
 		pretty_json, err := json.MarshalIndent(db_comics[i], "", " ")
 		if err != nil {
-			log.Printf("Error marshaling json with id = %d: %s", db_comics[i].Id, err.Error())
+			log.Printf("Error marshaling json with id = %d: %s", db_comics[i].Id, err)
 		}
 		fmt.Println(string(pretty_json))
 	}

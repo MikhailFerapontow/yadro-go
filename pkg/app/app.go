@@ -31,7 +31,6 @@ func InitApp(db *database.DbApi, client *xkcd.Client, max_workers int) *App {
 func (a *App) GetComics(ctx context.Context) {
 	existing_comics := a.db.GetExisting()
 	comics, err := a.client.GetComics(ctx, a.max_workers, existing_comics)
-	log.Printf("Got db_comics %d", len(comics))
 	if err != nil {
 		log.Printf("Error getting comics: %s", err)
 	}
