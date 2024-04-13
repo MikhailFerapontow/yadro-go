@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log"
 
 	"github.com/MikhailFerapontow/yadro-go/models"
@@ -9,34 +10,30 @@ import (
 	"github.com/MikhailFerapontow/yadro-go/pkg/xkcd"
 )
 
-type Config struct {
-	File_path string
-	Url       string
-}
-
 type App struct {
-	db      *database.DbApi
-	client  *xkcd.Client
-	stemmer *words.Stemmer
+	db          *database.DbApi
+	client      *xkcd.Client
+	stemmer     *words.Stemmer
+	max_workers int
 }
 
-func InitApp(cfg Config) *App {
-	db := database.NewDbApi(cfg.File_path)
-	client := xkcd.NewCLient(cfg.Url)
+func InitApp(db *database.DbApi, client *xkcd.Client, max_workers int) *App {
 	stemmer := words.InitStemmer()
 
 	return &App{
-		db:      db,
-		client:  client,
-		stemmer: stemmer,
+		db:          db,
+		client:      client,
+		stemmer:     stemmer,
+		max_workers: max_workers,
 	}
 }
 
-func (a *App) GetComics() {
-	comics, err := a.client.GetComics()
+func (a *App) GetComics(ctx context.Context) {
+	existing_comics := a.db.GetExisting()
+	comics, err := a.client.GetComics(ctx, a.max_workers, existing_comics)
+	log.Printf("Got db_comics %d", len(comics))
 	if err != nil {
 		log.Printf("Error getting comics: %s", err)
-		return
 	}
 	a.db.Insert(a.stem_comics(comics))
 }
@@ -57,8 +54,8 @@ func (a *App) stem_comics(response_comics []models.ResponseComic) []models.DbCom
 	return db_comics
 }
 
-func (a *App) PrintAll(n int) {
-	max_id, err := a.client.GetLastComicId()
+func (a *App) PrintAll(ctx context.Context, n int) {
+	max_id, err := a.client.GetLastId(ctx)
 	if err != nil {
 		log.Printf("Error getting last comic id: %s", err)
 		return
@@ -67,5 +64,5 @@ func (a *App) PrintAll(n int) {
 		n = max_id
 	}
 
-	a.db.PrintAll(n)
+	a.db.Print(n)
 }
