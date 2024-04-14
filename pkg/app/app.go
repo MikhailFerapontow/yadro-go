@@ -11,26 +11,26 @@ import (
 )
 
 type App struct {
-	db          *database.DbApi
-	client      *xkcd.Client
-	stemmer     *words.Stemmer
-	max_workers int
+	db         *database.DbApi
+	client     *xkcd.Client
+	stemmer    *words.Stemmer
+	maxWorkers int
 }
 
-func InitApp(db *database.DbApi, client *xkcd.Client, max_workers int) *App {
+func InitApp(db *database.DbApi, client *xkcd.Client, maxWorkers int) *App {
 	stemmer := words.InitStemmer()
 
 	return &App{
-		db:          db,
-		client:      client,
-		stemmer:     stemmer,
-		max_workers: max_workers,
+		db:         db,
+		client:     client,
+		stemmer:    stemmer,
+		maxWorkers: maxWorkers,
 	}
 }
 
 func (a *App) GetComics(ctx context.Context) {
-	existing_comics := a.db.GetExisting()
-	comics, err := a.client.GetComics(ctx, a.max_workers, existing_comics)
+	existingComics := a.db.GetExisting()
+	comics, err := a.client.GetComics(ctx, a.maxWorkers, existingComics)
 	if err != nil {
 		log.Printf("Error getting comics: %s", err)
 	}
@@ -38,30 +38,17 @@ func (a *App) GetComics(ctx context.Context) {
 }
 
 func (a *App) stem_comics(response_comics []models.ResponseComic) []models.DbComic {
-	db_comics := make([]models.DbComic, len(response_comics))
+	dbComics := make([]models.DbComic, len(response_comics))
 	for i, comic := range response_comics {
-		processing_text := comic.Alt + comic.Transcript
-		key_words := a.stemmer.Stem(processing_text)
+		processingText := comic.Alt + comic.Transcript
+		keyWords := a.stemmer.Stem(processingText)
 
-		db_comics[i] = models.DbComic{
+		dbComics[i] = models.DbComic{
 			Id:       comic.Num,
 			Url:      comic.Img,
-			Keywords: key_words,
+			Keywords: keyWords,
 		}
 	}
 
-	return db_comics
-}
-
-func (a *App) PrintAll(ctx context.Context, n int) {
-	max_id, err := a.client.GetLastId(ctx)
-	if err != nil {
-		log.Printf("Error getting last comic id: %s", err)
-		return
-	}
-	if n > max_id {
-		n = max_id
-	}
-
-	a.db.Print(n)
+	return dbComics
 }
