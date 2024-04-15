@@ -118,7 +118,7 @@ func (c *Client) GetLastId(ctx context.Context) (int, error) {
 		m := (r + l) / 2
 		query := fmt.Sprintf("%s/%d/info.0.json", c.url, m)
 
-		req, err := http.NewRequestWithContext(ctx, "GET", query, nil)
+		req, err := http.NewRequestWithContext(ctx, "HEAD", query, nil)
 		if err != nil {
 			log.Printf("%s: Error creating request: %s", op, err)
 		}
