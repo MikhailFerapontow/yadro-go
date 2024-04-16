@@ -52,7 +52,7 @@ func (c *Client) GetComics(ctx context.Context, limit int, existing_comics map[i
 				case <-ctx.Done():
 					return
 				default:
-					if existing_comics[id] { //грязный хак с 404
+					if existing_comics[id] {
 						continue
 					}
 
@@ -61,6 +61,7 @@ func (c *Client) GetComics(ctx context.Context, limit int, existing_comics map[i
 						log.Printf("Error getting comic with id = %d: %s", id, err)
 						continue
 					}
+
 					mu.Lock()
 					comics = append(comics, comic)
 					mu.Unlock()
@@ -95,7 +96,7 @@ func (c *Client) getComicById(ctx context.Context, id int) (models.ResponseComic
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return models.ResponseComic{}, err
+		return models.ResponseComic{}, fmt.Errorf("%s", resp.Status)
 	}
 
 	var comic models.ResponseComic

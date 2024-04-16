@@ -53,7 +53,6 @@ func (d *DbApi) GetExisting() map[int]bool {
 	text, err := os.ReadFile(d.file_path)
 
 	existingComics := make(map[int]bool)
-	existingComics[404] = true // грязный хак
 
 	if os.IsNotExist(err) {
 		log.Printf("Creating file: %s", d.file_path)
