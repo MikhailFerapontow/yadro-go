@@ -34,39 +34,36 @@ func (c *Client) GetComics(ctx context.Context, limit int, existing_comics map[i
 		log.Printf("Error getting last comic id: %s", err)
 		return nil, err
 	}
-
 	log.Printf("Found last comic with id = %d", maxId)
 
 	var comics []models.ResponseComic
 	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
 	idchannel := make(chan int, maxId)
+
+	wg := sync.WaitGroup{}
+	wg.Add(limit)
 
 	for w := 1; w <= limit; w++ {
 		go func() {
-			for id := range idchannel {
-				wg.Add(1)
+			defer wg.Done()
 
+			for id := range idchannel {
 				select {
 				case <-ctx.Done():
-					wg.Done()
 					return
 				default:
-					if existing_comics[id] {
-						wg.Done()
+					if existing_comics[id] { //грязный хак с 404
 						continue
 					}
 
 					comic, err := c.getComicById(ctx, id)
 					if err != nil {
 						log.Printf("Error getting comic with id = %d: %s", id, err)
-						wg.Done()
 						continue
 					}
 					mu.Lock()
 					comics = append(comics, comic)
 					mu.Unlock()
-					wg.Done()
 				}
 			}
 		}()
@@ -78,7 +75,6 @@ func (c *Client) GetComics(ctx context.Context, limit int, existing_comics map[i
 	close(idchannel)
 
 	wg.Wait()
-
 	log.Printf("Finished fetching comics")
 	return comics, ctx.Err()
 }

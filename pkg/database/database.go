@@ -2,7 +2,6 @@ package database
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 
@@ -67,27 +66,7 @@ func (d *DbApi) GetExisting() map[int]bool {
 	for _, comic := range dbComics {
 		existingComics[comic.Id] = true
 	}
+	existingComics[404] = true // грязный хак
 
 	return existingComics
-}
-
-func (d *DbApi) Print(n int) {
-	file, err := os.ReadFile(d.file_path)
-	if err != nil {
-		log.Printf("Error opening file: %s", err)
-		return
-	}
-	var db_comics []models.DbComic
-	if err := json.Unmarshal(file, &db_comics); err != nil {
-		log.Printf("Error unmarshaling json: %s", err)
-		return
-	}
-
-	for i := 0; i < n; i++ {
-		pretty_json, err := json.MarshalIndent(db_comics[i], "", " ")
-		if err != nil {
-			log.Printf("Error marshaling json with id = %d: %s", db_comics[i].Id, err)
-		}
-		fmt.Println(string(pretty_json))
-	}
 }
