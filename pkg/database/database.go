@@ -28,8 +28,10 @@ func (d *DbApi) Insert(comics []models.DbComic) {
 	}
 
 	var dbComics []models.DbComic
-	if err := json.Unmarshal(text, &dbComics); err != nil {
-		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
+	if len(text) != 0 {
+		if err := json.Unmarshal(text, &dbComics); err != nil {
+			log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
+		}
 	}
 
 	comics = append(comics, dbComics...)
@@ -41,7 +43,7 @@ func (d *DbApi) Insert(comics []models.DbComic) {
 	defer file.Close()
 
 	bytes, _ := json.MarshalIndent(comics, "", " ")
-	file.Write(bytes)
+	os.WriteFile(d.file_path, bytes, 0644)
 	log.Printf("%s: Successfully inserted comics", op)
 }
 
@@ -49,24 +51,28 @@ func (d *DbApi) GetExisting() map[int]bool {
 	op := "op.get_existing_comics"
 
 	text, err := os.ReadFile(d.file_path)
-	if err != nil {
-		log.Printf("%s: Error opening file: %s", op, err)
+
+	existingComics := make(map[int]bool)
+	existingComics[404] = true // грязный хак
+
+	if os.IsNotExist(err) {
 		log.Printf("Creating file: %s", d.file_path)
 		os.Create(d.file_path)
-		return make(map[int]bool)
+		return existingComics
+	} else if err != nil {
+		log.Printf("%s: Error opening file: %s", op, err)
+		return existingComics
 	}
 
 	var dbComics []models.DbComic
 	if err := json.Unmarshal(text, &dbComics); err != nil {
 		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
-		return make(map[int]bool)
+		return existingComics
 	}
 
-	existingComics := make(map[int]bool)
 	for _, comic := range dbComics {
 		existingComics[comic.Id] = true
 	}
-	existingComics[404] = true // грязный хак
 
 	return existingComics
 }
