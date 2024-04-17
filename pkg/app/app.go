@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log"
 
 	"github.com/MikhailFerapontow/yadro-go/models"
@@ -9,63 +10,45 @@ import (
 	"github.com/MikhailFerapontow/yadro-go/pkg/xkcd"
 )
 
-type Config struct {
-	File_path string
-	Url       string
-}
-
 type App struct {
-	db      *database.DbApi
-	client  *xkcd.Client
-	stemmer *words.Stemmer
+	db         *database.DbApi
+	client     *xkcd.Client
+	stemmer    *words.Stemmer
+	maxWorkers int
 }
 
-func InitApp(cfg Config) *App {
-	db := database.NewDbApi(cfg.File_path)
-	client := xkcd.NewCLient(cfg.Url)
+func InitApp(db *database.DbApi, client *xkcd.Client, maxWorkers int) *App {
 	stemmer := words.InitStemmer()
 
 	return &App{
-		db:      db,
-		client:  client,
-		stemmer: stemmer,
+		db:         db,
+		client:     client,
+		stemmer:    stemmer,
+		maxWorkers: maxWorkers,
 	}
 }
 
-func (a *App) GetComics() {
-	comics, err := a.client.GetComics()
+func (a *App) GetComics(ctx context.Context) {
+	existingComics := a.db.GetExisting()
+	comics, err := a.client.GetComics(ctx, a.maxWorkers, existingComics)
 	if err != nil {
 		log.Printf("Error getting comics: %s", err)
-		return
 	}
 	a.db.Insert(a.stem_comics(comics))
 }
 
 func (a *App) stem_comics(response_comics []models.ResponseComic) []models.DbComic {
-	db_comics := make([]models.DbComic, len(response_comics))
+	dbComics := make([]models.DbComic, len(response_comics))
 	for i, comic := range response_comics {
-		processing_text := comic.Alt + comic.Transcript
-		key_words := a.stemmer.Stem(processing_text)
+		processingText := comic.Alt + comic.Transcript
+		keyWords := a.stemmer.Stem(processingText)
 
-		db_comics[i] = models.DbComic{
+		dbComics[i] = models.DbComic{
 			Id:       comic.Num,
 			Url:      comic.Img,
-			Keywords: key_words,
+			Keywords: keyWords,
 		}
 	}
 
-	return db_comics
-}
-
-func (a *App) PrintAll(n int) {
-	max_id, err := a.client.GetLastComicId()
-	if err != nil {
-		log.Printf("Error getting last comic id: %s", err)
-		return
-	}
-	if n > max_id {
-		n = max_id
-	}
-
-	a.db.PrintAll(n)
+	return dbComics
 }
