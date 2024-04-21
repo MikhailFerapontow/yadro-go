@@ -87,6 +87,7 @@ func (c *Client) getComicById(ctx context.Context, id int) (models.ResponseComic
 	if err != nil {
 		return models.ResponseComic{}, err
 	}
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

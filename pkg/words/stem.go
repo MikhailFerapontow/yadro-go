@@ -3,8 +3,11 @@ package words
 import (
 	_ "embed"
 	"log"
+	"sort"
 	"strings"
+	"sync"
 
+	"github.com/MikhailFerapontow/yadro-go/models"
 	"github.com/kljensen/snowball"
 )
 
@@ -31,45 +34,62 @@ func InitStemmer() *Stemmer {
 }
 
 func (s *Stemmer) trimPunctuation(target string) string {
-	return strings.Trim(target, ",.!?:;\"'()[]{}#<>")
+	return strings.Trim(target, ",.!?:;\"'()[]{}#<>*")
 }
 
-func (s *Stemmer) Stem(initialString string) []string {
+func (s *Stemmer) Stem(initialString string) []models.WeightedWord {
 	words := strings.Fields(initialString)
-	ans := []string{}
-	seenWords := make(map[string]bool)
+	seenWords := make(map[string]int)
 
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+
+	wg.Add(len(words))
 	for i := range words {
-		if len(words[i]) < 4 {
-			continue
-		}
+		go func(i int) {
+			defer wg.Done()
 
-		stemmed, err := snowball.Stem(s.trimPunctuation(words[i]), "english", false)
+			if len(words[i]) < 4 {
+				return
+			}
 
-		if err != nil {
-			log.Fatalf("Internal error stemming word: %s", err.Error())
-		}
+			stemmed, err := snowball.Stem(s.trimPunctuation(words[i]), "english", false)
 
-		// Проверяем является ли слово стоп-словом
-		if s.stopWordMap[stemmed] {
-			continue
-		}
+			if err != nil {
+				log.Fatalf("Internal error stemming word: %s", err.Error())
+			}
 
-		// Проверям если уже встречали это слово
-		if seenWords[stemmed] {
-			continue
-		}
+			// Проверяем является ли слово стоп-словом
+			if s.stopWordMap[stemmed] {
+				return
+			}
 
-		seenWords[stemmed] = true
-		ans = append(ans, stemmed)
+			mu.Lock()
+			seenWords[stemmed] += 1
+			mu.Unlock()
+		}(i)
+	}
+	wg.Wait()
+
+	cnt := make([]models.WeightedWord, len(seenWords))
+	i := 0
+	for k, v := range seenWords {
+		cnt[i] = models.WeightedWord{Word: k, Count: v}
+		i++
 	}
 
-	/*
-		По хорошему нужно провести статистический анализ какие слова встречаются чаще всего
-		пока так сойдёт
-	*/
-	if len(ans) > 10 {
-		ans = ans[:10]
+	sort.Slice(cnt, func(i, j int) bool {
+		return cnt[i].Count > cnt[j].Count
+	})
+
+	ans := make([]models.WeightedWord, 0)
+	n := 10
+	for i, w := range cnt {
+		if i > n {
+			break
+		}
+		ans = append(ans, w)
 	}
+
 	return ans
 }
