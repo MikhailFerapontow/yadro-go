@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/MikhailFerapontow/yadro-go/models"
@@ -31,10 +32,27 @@ func InitApp(db *database.DbApi, client *xkcd.Client, maxWorkers int) *App {
 func (a *App) GetComics(ctx context.Context) {
 	existingComics := a.db.GetExisting()
 	comics, err := a.client.GetComics(ctx, a.maxWorkers, existingComics)
+
 	if err != nil {
 		log.Printf("Error getting comics: %s", err)
 	}
 	a.db.Insert(a.stem_comics(comics))
+}
+
+func (a *App) Find(searchInput string) {
+	log.Printf("Start search")
+
+	search := a.stemmer.Stem(searchInput)
+	comics, err := a.db.Find(search)
+	if err != nil {
+		log.Printf("Error finding comics: %s", err)
+		return
+	}
+
+	fmt.Printf("Found %d comics:\n", len(comics))
+	for i, comic := range comics {
+		fmt.Printf("%d. %s\n", i+1, comic.Url)
+	}
 }
 
 func (a *App) stem_comics(response_comics []models.ResponseComic) []models.DbComic {

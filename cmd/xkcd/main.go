@@ -15,7 +15,9 @@ import (
 
 func main() {
 	var config_path string
-	flag.StringVar(&config_path, "c", ".", "path to config file.")
+	var search_query string
+	flag.StringVar(&config_path, "c", ".", "path to config file")
+	flag.StringVar(&search_query, "s", "", "Query for searching comics")
 
 	flag.Parse()
 
@@ -29,4 +31,8 @@ func main() {
 	defer stop()
 
 	app.GetComics(ctx)
+	if search_query == "" {
+		return
+	}
+	app.Find(search_query)
 }
