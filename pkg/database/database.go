@@ -12,12 +12,14 @@ import (
 )
 
 type DbApi struct {
-	filePath string
+	filePath  string
+	indexPath string
 }
 
 func NewDbApi(filePath string) *DbApi {
 	return &DbApi{
-		filePath: filePath,
+		filePath:  filePath,
+		indexPath: "index.json",
 	}
 }
 
@@ -26,7 +28,7 @@ func (d *DbApi) Insert(comics []models.DbComic) {
 
 	text, err := os.ReadFile(d.filePath)
 	if err != nil {
-		log.Printf("Error opening file: %s", err)
+		log.Printf("%s: Error opening file: %s", op, err)
 		return
 	}
 
@@ -77,6 +79,53 @@ func (d *DbApi) GetExisting() map[int]bool {
 	}
 
 	return existingComics
+}
+
+func (d *DbApi) FormIndex() {
+	op := "op.form_index"
+	log.Printf("%s: Start", op)
+	text, err := os.ReadFile(d.filePath)
+	if err != nil {
+		log.Printf("%s: Error opening file: %s", op, err)
+		return
+	}
+
+	var dbComics []models.DbComic
+	if err := json.Unmarshal(text, &dbComics); err != nil {
+		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
+	}
+
+	index := make(map[string][]models.WeightedId)
+	for _, comic := range dbComics {
+		for _, keyword := range comic.Keywords {
+			index[keyword.Word] = append(index[keyword.Word], models.WeightedId{
+				Id:     comic.Id,
+				Url:    comic.Url,
+				Weight: keyword.Count,
+			})
+		}
+	}
+
+	result := make([]models.KwIndex, len(index))
+	i := 0
+	for k, v := range index {
+		result[i] = models.KwIndex{
+			Keyword: k,
+			Ids:     v,
+		}
+		i++
+	}
+
+	f, err := os.Create(d.indexPath)
+	if err != nil {
+		log.Printf("%s: Error creating file: %s", op, err)
+		return
+	}
+	defer f.Close()
+
+	bytes, _ := json.MarshalIndent(result, "", " ")
+	os.WriteFile(d.indexPath, bytes, 0644)
+	log.Printf("%s: Successfully created index", op)
 }
 
 func (d *DbApi) Find(search []models.WeightedWord) ([]models.DbComic, error) {
@@ -148,10 +197,3 @@ func (d *DbApi) Find(search []models.WeightedWord) ([]models.DbComic, error) {
 	}
 	return foundComics, nil
 }
-
-// func (d *DbApi) FormIndex(comics []models.DbComic) {
-// 	op := "op.form_index"
-
-// 	text,er
-// 	return
-// }

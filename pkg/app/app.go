@@ -37,6 +37,9 @@ func (a *App) GetComics(ctx context.Context) {
 		log.Printf("Error getting comics: %s", err)
 	}
 	a.db.Insert(a.stem_comics(comics))
+	if len(comics) != 0 {
+		a.db.FormIndex()
+	}
 }
 
 func (a *App) Find(searchInput string) {
