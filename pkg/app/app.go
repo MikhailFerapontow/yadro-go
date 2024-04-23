@@ -86,7 +86,7 @@ func (a *App) indexSearch(searchInput []models.WeightedWord) {
 func (a *App) stem_comics(response_comics []models.ResponseComic) []models.DbComic {
 	dbComics := make([]models.DbComic, len(response_comics))
 	for i, comic := range response_comics {
-		processingText := comic.Alt + comic.Transcript
+		processingText := comic.Alt + comic.Transcript + comic.Title + comic.SafeTitle
 		keyWords := a.stemmer.Stem(processingText)
 
 		dbComics[i] = models.DbComic{

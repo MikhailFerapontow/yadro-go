@@ -2,6 +2,8 @@ package models
 
 type ResponseComic struct {
 	Num        int    `json:"num"`
+	Title      string `json:"title"`
+	SafeTitle  string `json:"safe_title"`
 	Transcript string `json:"transcript"`
 	Alt        string `json:"alt"`
 	Img        string `json:"img"`
