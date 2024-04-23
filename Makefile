@@ -7,6 +7,10 @@ install:
 test:
 	go test ./...
 
+bench:
+	go
+
 clean:
 	rm xkcd
 	rm database.json
+	rm index.json
