@@ -191,9 +191,100 @@ func (d *DbApi) Find(search []models.WeightedWord) ([]models.DbComic, error) {
 			break
 		}
 		foundComics = append(foundComics, models.DbComic{
-			Id:  idSimilarity[i].Id,
 			Url: idSimilarity[i].Url,
 		})
 	}
 	return foundComics, nil
+}
+
+func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, error) {
+	op := "op.find_by_index"
+
+	text, err := os.ReadFile(d.indexPath)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %s", op, err)
+	}
+
+	var index []models.KwIndex
+	if err := json.Unmarshal(text, &index); err != nil {
+		return nil, fmt.Errorf("%s: %s", op, err)
+	}
+
+	kwIndex := make(map[string][]models.WeightedId)
+	for _, kw := range index {
+		kwIndex[kw.Keyword] = kw.Ids
+	}
+
+	type comicSimilarity struct {
+		Url        string
+		Similarity int
+	}
+
+	wg := sync.WaitGroup{}
+	rwmu := sync.RWMutex{}
+
+	wg.Add(len(search))
+
+	found := make(map[int]comicSimilarity)
+	for _, word := range search {
+		go func() {
+			defer wg.Done()
+
+			rwmu.RLock()
+			ids, ok := kwIndex[word.Word]
+			rwmu.RUnlock()
+
+			if !ok {
+				return
+			}
+
+			for _, weightedId := range ids {
+				val, ok := found[weightedId.Id]
+
+				if !ok {
+					rwmu.Lock()
+					found[weightedId.Id] = comicSimilarity{
+						Url:        weightedId.Url,
+						Similarity: weightedId.Weight * word.Count,
+					}
+					rwmu.Unlock()
+
+					continue
+				}
+
+				rwmu.Lock()
+				found[weightedId.Id] = comicSimilarity{
+					Url:        weightedId.Url,
+					Similarity: val.Similarity + weightedId.Weight*word.Count,
+				}
+				rwmu.Unlock()
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	var comicsSimilarity []comicSimilarity
+	for _, val := range found {
+		comicsSimilarity = append(comicsSimilarity, val)
+	}
+
+	sort.Slice(comicsSimilarity, func(i, j int) bool {
+		return comicsSimilarity[i].Similarity > comicsSimilarity[j].Similarity
+	})
+
+	i := 10
+	var result []models.DbComic
+	for _, comic := range comicsSimilarity {
+		if i == 0 {
+			break
+		}
+		i--
+
+		result = append(result, models.DbComic{
+			Url: comic.Url,
+		})
+	}
+
+	return result, nil
 }

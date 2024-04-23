@@ -42,11 +42,36 @@ func (a *App) GetComics(ctx context.Context) {
 	}
 }
 
-func (a *App) Find(searchInput string) {
+func (a *App) Find(searchInput string, byIndex bool) {
+	if len(searchInput) == 0 {
+		return
+	}
 	log.Printf("Start search")
 
 	search := a.stemmer.Stem(searchInput)
-	comics, err := a.db.Find(search)
+
+	if byIndex {
+		a.indexSearch(search)
+	} else {
+		a.infoSearch(search)
+	}
+}
+
+func (a *App) infoSearch(searchInput []models.WeightedWord) {
+	comics, err := a.db.Find(searchInput)
+	if err != nil {
+		log.Printf("Error finding comics: %s", err)
+		return
+	}
+
+	fmt.Printf("Found %d comics:\n", len(comics))
+	for i, comic := range comics {
+		fmt.Printf("%d. %s\n", i+1, comic.Url)
+	}
+}
+
+func (a *App) indexSearch(searchInput []models.WeightedWord) {
+	comics, err := a.db.FindByIndex(searchInput)
 	if err != nil {
 		log.Printf("Error finding comics: %s", err)
 		return

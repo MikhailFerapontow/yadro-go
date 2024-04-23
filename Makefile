@@ -2,7 +2,7 @@ all:
 	go build -o xkcd ./cmd/xkcd/main.go
 
 install:
-	go mod download
+	go mod tidy && go mod download
 
 test:
 	go test ./...
