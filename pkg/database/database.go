@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"sort"
-	"sync"
 
 	"github.com/MikhailFerapontow/yadro-go/models"
 )
@@ -149,37 +148,27 @@ func (d *DbApi) Find(search []models.WeightedWord) ([]models.DbComic, error) {
 
 	idSimilarity := make([]comicSimilarity, len(dbComics))
 
-	wg := sync.WaitGroup{}
-	mu := sync.Mutex{}
-
-	wg.Add(len(dbComics))
 	for i, comic := range dbComics {
-		go func() {
-			defer wg.Done()
-			kw := make(map[string]int)
-			for _, keyword := range comic.Keywords {
-				kw[keyword.Word] = keyword.Count
-			}
+		kw := make(map[string]int)
+		for _, keyword := range comic.Keywords {
+			kw[keyword.Word] = keyword.Count
+		}
 
-			similarity := 0
-			for _, word := range search {
-				num, ok := kw[word.Word]
-				if !ok {
-					continue
-				}
-				similarity += word.Count * num
+		similarity := 0
+		for _, word := range search {
+			num, ok := kw[word.Word]
+			if !ok {
+				continue
 			}
+			similarity += word.Count * num
+		}
 
-			mu.Lock()
-			idSimilarity[i] = comicSimilarity{
-				Id:         comic.Id,
-				Url:        comic.Url,
-				Similarity: similarity,
-			}
-			mu.Unlock()
-		}()
+		idSimilarity[i] = comicSimilarity{
+			Id:         comic.Id,
+			Url:        comic.Url,
+			Similarity: similarity,
+		}
 	}
-	wg.Wait()
 
 	sort.Slice(idSimilarity, func(i, j int) bool {
 		return idSimilarity[i].Similarity > idSimilarity[j].Similarity
@@ -220,47 +209,32 @@ func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, err
 		Similarity int
 	}
 
-	wg := sync.WaitGroup{}
-	mu := sync.Mutex{}
-
-	wg.Add(len(search))
-
 	found := make(map[int]comicSimilarity)
 	for _, word := range search {
-		go func() {
-			defer wg.Done()
+		ids, ok := kwIndex[word.Word]
 
-			ids, ok := kwIndex[word.Word]
+		if !ok {
+			continue
+		}
+
+		for _, weightedId := range ids {
+			val, ok := found[weightedId.Id]
 
 			if !ok {
-				return
-			}
-
-			for _, weightedId := range ids {
-				val, ok := found[weightedId.Id]
-
-				if !ok {
-					mu.Lock()
-					found[weightedId.Id] = comicSimilarity{
-						Url:        weightedId.Url,
-						Similarity: weightedId.Weight * word.Count,
-					}
-					mu.Unlock()
-
-					continue
-				}
-
-				mu.Lock()
 				found[weightedId.Id] = comicSimilarity{
 					Url:        weightedId.Url,
-					Similarity: val.Similarity + weightedId.Weight*word.Count,
+					Similarity: weightedId.Weight * word.Count,
 				}
-				mu.Unlock()
-			}
-		}()
-	}
 
-	wg.Wait()
+				continue
+			}
+
+			found[weightedId.Id] = comicSimilarity{
+				Url:        weightedId.Url,
+				Similarity: val.Similarity + weightedId.Weight*word.Count,
+			}
+		}
+	}
 
 	var comicsSimilarity []comicSimilarity
 	for _, val := range found {
