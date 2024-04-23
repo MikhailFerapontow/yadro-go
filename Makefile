@@ -4,6 +4,9 @@ all:
 install:
 	go mod tidy && go mod download
 
+tidy:
+	go mod tidy
+
 test:
 	go test ./...
 

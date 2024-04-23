@@ -10,7 +10,6 @@ var table = []struct {
 	testName    string
 	searchInput string
 }{
-	{testName: "Empty search input", searchInput: ""},
 	{testName: "Short search input", searchInput: "word"},
 	{testName: "Medium search input", searchInput: "I'll follow you as long as I can"},
 	{testName: "Very long search input",

@@ -33,8 +33,5 @@ func main() {
 	defer stop()
 
 	app.GetComics(ctx)
-	if searchQuery == "" {
-		return
-	}
 	app.Find(searchQuery, searchByIndex)
 }

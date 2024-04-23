@@ -221,7 +221,7 @@ func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, err
 	}
 
 	wg := sync.WaitGroup{}
-	rwmu := sync.RWMutex{}
+	mu := sync.Mutex{}
 
 	wg.Add(len(search))
 
@@ -230,9 +230,7 @@ func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, err
 		go func() {
 			defer wg.Done()
 
-			rwmu.RLock()
 			ids, ok := kwIndex[word.Word]
-			rwmu.RUnlock()
 
 			if !ok {
 				return
@@ -242,22 +240,22 @@ func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, err
 				val, ok := found[weightedId.Id]
 
 				if !ok {
-					rwmu.Lock()
+					mu.Lock()
 					found[weightedId.Id] = comicSimilarity{
 						Url:        weightedId.Url,
 						Similarity: weightedId.Weight * word.Count,
 					}
-					rwmu.Unlock()
+					mu.Unlock()
 
 					continue
 				}
 
-				rwmu.Lock()
+				mu.Lock()
 				found[weightedId.Id] = comicSimilarity{
 					Url:        weightedId.Url,
 					Similarity: val.Similarity + weightedId.Weight*word.Count,
 				}
-				rwmu.Unlock()
+				mu.Unlock()
 			}
 		}()
 	}
