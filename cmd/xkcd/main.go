@@ -17,7 +17,7 @@ func main() {
 	var configPath string
 	var searchQuery string
 	var searchByIndex bool
-	flag.StringVar(&configPath, "c", ".", "Path to config file")
+	flag.StringVar(&configPath, "c", ".", "Path to config folder")
 	flag.StringVar(&searchQuery, "s", "", "Query for searching comics")
 	flag.BoolVar(&searchByIndex, "i", false, "Enable search by index")
 
