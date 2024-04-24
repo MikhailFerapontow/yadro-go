@@ -14,12 +14,16 @@ import (
 )
 
 func main() {
-	var config_path string
-	flag.StringVar(&config_path, "c", ".", "path to config file.")
+	var configPath string
+	var searchQuery string
+	var searchByIndex bool
+	flag.StringVar(&configPath, "c", ".", "Path to config folder")
+	flag.StringVar(&searchQuery, "s", "", "Query for searching comics")
+	flag.BoolVar(&searchByIndex, "i", false, "Enable search by index")
 
 	flag.Parse()
 
-	config.MustLoad(config_path)
+	config.MustLoad(configPath)
 
 	db := database.NewDbApi(viper.GetString("db_file"))
 	client := xkcd.NewCLient(viper.GetString("source_url"))
@@ -29,4 +33,5 @@ func main() {
 	defer stop()
 
 	app.GetComics(ctx)
+	app.Find(searchQuery, searchByIndex)
 }
