@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/core/domain"
@@ -27,7 +26,7 @@ func NewComicService(
 	}
 }
 
-func (s *ComicService) GetComics(ctx context.Context, limit int) {
+func (s *ComicService) GetComics(ctx context.Context, limit int) (int, int) {
 	existingComics := s.dbRepo.GetExisting()
 	comics, err := s.client.GetComics(ctx, limit, existingComics)
 	if err != nil {
@@ -36,11 +35,13 @@ func (s *ComicService) GetComics(ctx context.Context, limit int) {
 
 	s.dbRepo.Insert(s.stemComics(comics))
 	s.dbRepo.FormIndex()
+
+	return len(comics), len(comics) + len(existingComics)
 }
 
-func (s *ComicService) Find(searchInput string) ([]domain.Comic, error) {
+func (s *ComicService) Find(searchInput string) []domain.Comic {
 	if len(searchInput) == 0 {
-		return nil, fmt.Errorf("empty search input")
+		return nil
 	}
 
 	log.Println("Start search")

@@ -7,8 +7,8 @@ import (
 )
 
 type ClientService interface {
-	GetComics(ctx context.Context, limit int)
-	Find(searchInput string) ([]domain.Comic, error)
+	GetComics(ctx context.Context, limit int) (int, int)
+	Find(searchInput string) []domain.Comic
 }
 
 type ClientRepository interface {
@@ -21,7 +21,7 @@ type ComicRepository interface {
 	Insert(comics []domain.Comic)
 	GetExisting() map[int]bool
 	FormIndex()
-	Find(search []domain.WeightedWord) ([]domain.Comic, error)
+	Find(search []domain.WeightedWord) []domain.Comic
 }
 
 type StemmerRepository interface {

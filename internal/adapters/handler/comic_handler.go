@@ -2,9 +2,8 @@ package handler
 
 import (
 	"context"
-	"fmt"
-	"log"
 
+	"github.com/MikhailFerapontow/yadro-go/internal/core/domain"
 	"github.com/MikhailFerapontow/yadro-go/internal/core/ports"
 	"github.com/spf13/viper"
 )
@@ -19,20 +18,10 @@ func NewComicHandler(svc ports.ClientService) *ComicHandler {
 	}
 }
 
-func (h *ComicHandler) GetComics(ctx context.Context) {
-	h.svc.GetComics(ctx, viper.GetInt("parallel"))
+func (h *ComicHandler) GetComics(ctx context.Context) (int, int) {
+	return h.svc.GetComics(ctx, viper.GetInt("parallel"))
 }
 
-func (h *ComicHandler) Find(ctx context.Context, searchInput string) {
-	comics, err := h.svc.Find(searchInput)
-
-	if err != nil {
-		log.Printf("Error finding comics: %s", err)
-		return
-	}
-
-	fmt.Printf("Found %d comics:\n", len(comics))
-	for i, comic := range comics {
-		fmt.Printf("%d. %s\n", i+1, comic.Url)
-	}
+func (h *ComicHandler) Find(ctx context.Context, searchInput string) []domain.Comic {
+	return h.svc.Find(searchInput)
 }

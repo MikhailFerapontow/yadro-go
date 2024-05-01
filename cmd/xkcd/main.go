@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -22,11 +23,7 @@ var (
 
 func main() {
 	var configPath string
-	var searchQuery string
-	var searchByIndex bool
 	flag.StringVar(&configPath, "c", ".", "Path to config folder")
-	flag.StringVar(&searchQuery, "s", "", "Query for searching comics")
-	flag.BoolVar(&searchByIndex, "i", false, "Enable search by index")
 
 	flag.Parse()
 
@@ -46,15 +43,59 @@ func InitRoutes() {
 
 	handler := handler.NewComicHandler(service)
 
+	handler.GetComics(context.Background()) // update on startup
+
 	router.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
 		ctx, stop := signal.NotifyContext(r.Context(), os.Interrupt)
 		defer stop()
-		handler.GetComics(ctx)
+		new, total := handler.GetComics(ctx)
+
+		type comicsResponse struct {
+			New   int `json:"new"`
+			Total int `json:"total"`
+		}
+
+		response := comicsResponse{
+			New:   new,
+			Total: total,
+		}
+
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonResponse)
 	})
 
 	router.HandleFunc("GET /pics", func(w http.ResponseWriter, r *http.Request) {
 		search := r.URL.Query().Get("search")
-		handler.Find(r.Context(), search)
+		comics := handler.Find(r.Context(), search)
+
+		fmt.Println(comics)
+
+		type comicResponse struct {
+			Url string
+		}
+
+		response := make([]comicResponse, len(comics))
+		for i, comic := range comics {
+			response[i].Url = comic.Url
+
+		}
+
+		jsonResponse, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonResponse)
 	})
 
 	go func() {

@@ -106,25 +106,6 @@ func (d *DbApi) FormIndex() {
 
 	d.index = index
 
-	// result := make([]domain.KwIndex, len(index))
-	// i := 0
-	// for k, v := range index {
-	// 	result[i] = domain.KwIndex{
-	// 		Keyword: k,
-	// 		Ids:     v,
-	// 	}
-	// 	i++
-	// }
-
-	// f, err := os.Create(d.indexPath)
-	// if err != nil {
-	// 	log.Printf("%s: Error creating file: %s", op, err)
-	// 	return
-	// }
-	// defer f.Close()
-
-	// bytes, _ := json.MarshalIndent(result, "", " ")
-	// os.WriteFile(d.indexPath, bytes, 0644)
 	log.Printf("%s: Successfully created index", op)
 }
 
@@ -187,7 +168,7 @@ func (d *DbApi) FindInDb(search []domain.WeightedWord) ([]domain.Comic, error) {
 	return foundComics, nil
 }
 
-func (d *DbApi) Find(search []domain.WeightedWord) ([]domain.Comic, error) {
+func (d *DbApi) Find(search []domain.WeightedWord) []domain.Comic {
 
 	type comicSimilarity struct {
 		Url        string
@@ -242,5 +223,5 @@ func (d *DbApi) Find(search []domain.WeightedWord) ([]domain.Comic, error) {
 		})
 	}
 
-	return result, nil
+	return result
 }
