@@ -11,15 +11,13 @@ import (
 )
 
 type DbApi struct {
-	filePath  string
-	indexPath string
-	index     map[string][]domain.WeightedId
+	filePath string
+	index    map[string][]domain.WeightedId
 }
 
 func NewDbApi(filePath string) *DbApi {
 	return &DbApi{
-		filePath:  filePath,
-		indexPath: "index.json",
+		filePath: filePath,
 	}
 }
 
@@ -218,81 +216,6 @@ func (d *DbApi) Find(search []domain.WeightedWord) ([]domain.Comic, error) {
 			found[comic.Id] = comicSimilarity{
 				Url:        val.Url,
 				Similarity: val.Similarity + kw.Count*comic.Weight,
-			}
-		}
-	}
-
-	var comicsSimilarity []comicSimilarity
-	for _, val := range found {
-		comicsSimilarity = append(comicsSimilarity, val)
-	}
-
-	sort.Slice(comicsSimilarity, func(i, j int) bool {
-		return comicsSimilarity[i].Similarity > comicsSimilarity[j].Similarity
-	})
-
-	i := 10
-	var result []domain.Comic
-	for _, comic := range comicsSimilarity {
-		if i == 0 {
-			break
-		}
-		i--
-
-		result = append(result, domain.Comic{
-			Url: comic.Url,
-		})
-	}
-
-	return result, nil
-}
-
-func (d *DbApi) FindByIndex(search []domain.WeightedWord) ([]domain.Comic, error) {
-	op := "op.find"
-
-	text, err := os.ReadFile(d.indexPath)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %s", op, err)
-	}
-
-	var index []domain.KwIndex
-	if err := json.Unmarshal(text, &index); err != nil {
-		return nil, fmt.Errorf("%s: %s", op, err)
-	}
-
-	kwIndex := make(map[string][]domain.WeightedId)
-	for _, kw := range index {
-		kwIndex[kw.Keyword] = kw.Ids
-	}
-
-	type comicSimilarity struct {
-		Url        string
-		Similarity int
-	}
-
-	found := make(map[int]comicSimilarity)
-	for _, word := range search {
-		ids, ok := kwIndex[word.Word]
-
-		if !ok {
-			continue
-		}
-
-		for _, weightedId := range ids {
-			val, ok := found[weightedId.Id]
-
-			if !ok {
-				found[weightedId.Id] = comicSimilarity{
-					Url:        weightedId.Url,
-					Similarity: weightedId.Weight * word.Count,
-				}
-
-				continue
-			}
-
-			found[weightedId.Id] = comicSimilarity{
-				Url:        weightedId.Url,
-				Similarity: val.Similarity + weightedId.Weight*word.Count,
 			}
 		}
 	}

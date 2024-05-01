@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/adapters/handler"
 	"github.com/MikhailFerapontow/yadro-go/internal/adapters/repository"
 	"github.com/MikhailFerapontow/yadro-go/internal/config"
 	"github.com/MikhailFerapontow/yadro-go/internal/core/services"
+	"github.com/robfig/cron"
 	"github.com/spf13/viper"
 )
 
@@ -35,16 +38,6 @@ func main() {
 
 	service = services.NewComicService(db, stemmer, client)
 
-	// db := database.NewDbApi(viper.GetString("db_file"))
-	// client := xkcd.NewCLient(viper.GetString("source_url"))
-	// app := app.InitApp(db, client, viper.GetInt("parallel"))
-
-	// ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	// defer stop()
-
-	// app.GetComics(ctx)
-	// app.Find(searchQuery, searchByIndex)
-
 	InitRoutes()
 }
 
@@ -54,7 +47,9 @@ func InitRoutes() {
 	handler := handler.NewComicHandler(service)
 
 	router.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
-		handler.GetComics(r.Context())
+		ctx, stop := signal.NotifyContext(r.Context(), os.Interrupt)
+		defer stop()
+		handler.GetComics(ctx)
 	})
 
 	router.HandleFunc("GET /pics", func(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +57,22 @@ func InitRoutes() {
 		handler.Find(r.Context(), search)
 	})
 
-	if err := http.ListenAndServe(viper.GetString("server.port"), router); err != nil && err != http.ErrServerClosed {
-		fmt.Fprintf(os.Stderr, "error listening and serving: %s\n", err)
-	}
+	go func() {
+		if err := http.ListenAndServe(viper.GetString("server.port"), router); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "error listening and serving: %s\n", err)
+		}
+	}()
+
+	StartCroneJob(handler)
+}
+
+func StartCroneJob(handler *handler.ComicHandler) {
+	c := cron.New()
+
+	c.AddFunc(viper.GetString("server.cron"), func() {
+		handler.GetComics(context.Background())
+	})
+
+	c.Run()
+	defer c.Stop()
 }
