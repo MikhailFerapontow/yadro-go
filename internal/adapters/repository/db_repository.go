@@ -13,6 +13,7 @@ import (
 type DbApi struct {
 	filePath  string
 	indexPath string
+	index     map[string][]domain.WeightedId
 }
 
 func NewDbApi(filePath string) *DbApi {
@@ -89,13 +90,13 @@ func (d *DbApi) FormIndex() {
 		return
 	}
 
-	var dbComics []domain.Comic
-	if err := json.Unmarshal(text, &dbComics); err != nil {
+	var Comics []domain.Comic
+	if err := json.Unmarshal(text, &Comics); err != nil {
 		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
 	}
 
 	index := make(map[string][]domain.WeightedId)
-	for _, comic := range dbComics {
+	for _, comic := range Comics {
 		for _, keyword := range comic.Keywords {
 			index[keyword.Word] = append(index[keyword.Word], domain.WeightedId{
 				Id:     comic.Id,
@@ -105,29 +106,31 @@ func (d *DbApi) FormIndex() {
 		}
 	}
 
-	result := make([]domain.KwIndex, len(index))
-	i := 0
-	for k, v := range index {
-		result[i] = domain.KwIndex{
-			Keyword: k,
-			Ids:     v,
-		}
-		i++
-	}
+	d.index = index
 
-	f, err := os.Create(d.indexPath)
-	if err != nil {
-		log.Printf("%s: Error creating file: %s", op, err)
-		return
-	}
-	defer f.Close()
+	// result := make([]domain.KwIndex, len(index))
+	// i := 0
+	// for k, v := range index {
+	// 	result[i] = domain.KwIndex{
+	// 		Keyword: k,
+	// 		Ids:     v,
+	// 	}
+	// 	i++
+	// }
 
-	bytes, _ := json.MarshalIndent(result, "", " ")
-	os.WriteFile(d.indexPath, bytes, 0644)
+	// f, err := os.Create(d.indexPath)
+	// if err != nil {
+	// 	log.Printf("%s: Error creating file: %s", op, err)
+	// 	return
+	// }
+	// defer f.Close()
+
+	// bytes, _ := json.MarshalIndent(result, "", " ")
+	// os.WriteFile(d.indexPath, bytes, 0644)
 	log.Printf("%s: Successfully created index", op)
 }
 
-func (d *DbApi) Find(search []domain.WeightedWord) ([]domain.Comic, error) {
+func (d *DbApi) FindInDb(search []domain.WeightedWord) ([]domain.Comic, error) {
 	op := "op.find"
 
 	text, err := os.ReadFile(d.filePath)
@@ -186,8 +189,66 @@ func (d *DbApi) Find(search []domain.WeightedWord) ([]domain.Comic, error) {
 	return foundComics, nil
 }
 
+func (d *DbApi) Find(search []domain.WeightedWord) ([]domain.Comic, error) {
+
+	type comicSimilarity struct {
+		Url        string
+		Similarity int
+	}
+
+	found := make(map[int]comicSimilarity)
+	for _, kw := range search {
+		ids, ok := d.index[kw.Word]
+
+		if !ok {
+			continue
+		}
+
+		for _, comic := range ids {
+			val, ok := found[comic.Id]
+
+			if !ok {
+				found[comic.Id] = comicSimilarity{
+					Url:        comic.Url,
+					Similarity: kw.Count * comic.Weight,
+				}
+				continue
+			}
+
+			found[comic.Id] = comicSimilarity{
+				Url:        val.Url,
+				Similarity: val.Similarity + kw.Count*comic.Weight,
+			}
+		}
+	}
+
+	var comicsSimilarity []comicSimilarity
+	for _, val := range found {
+		comicsSimilarity = append(comicsSimilarity, val)
+	}
+
+	sort.Slice(comicsSimilarity, func(i, j int) bool {
+		return comicsSimilarity[i].Similarity > comicsSimilarity[j].Similarity
+	})
+
+	i := 10
+	var result []domain.Comic
+	for _, comic := range comicsSimilarity {
+		if i == 0 {
+			break
+		}
+		i--
+
+		result = append(result, domain.Comic{
+			Url: comic.Url,
+		})
+	}
+
+	return result, nil
+}
+
 func (d *DbApi) FindByIndex(search []domain.WeightedWord) ([]domain.Comic, error) {
-	op := "op.find_by_index"
+	op := "op.find"
 
 	text, err := os.ReadFile(d.indexPath)
 	if err != nil {

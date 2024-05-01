@@ -35,12 +35,14 @@ func (s *ComicService) GetComics(ctx context.Context, limit int) {
 	}
 
 	s.dbRepo.Insert(s.stemComics(comics))
+	s.dbRepo.FormIndex()
 }
 
 func (s *ComicService) Find(searchInput string) ([]domain.Comic, error) {
 	if len(searchInput) == 0 {
 		return nil, fmt.Errorf("empty search input")
 	}
+
 	log.Println("Start search")
 	search := s.stemmerRepo.Stem(searchInput)
 

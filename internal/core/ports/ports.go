@@ -20,6 +20,7 @@ type ClientRepository interface {
 type ComicRepository interface {
 	Insert(comics []domain.Comic)
 	GetExisting() map[int]bool
+	FormIndex()
 	Find(search []domain.WeightedWord) ([]domain.Comic, error)
 }
 
