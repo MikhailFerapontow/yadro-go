@@ -1,16 +1,20 @@
 package main
 
 import (
-	"context"
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
-	"os/signal"
 
+	"github.com/MikhailFerapontow/yadro-go/internal/adapters/handler"
+	"github.com/MikhailFerapontow/yadro-go/internal/adapters/repository"
 	"github.com/MikhailFerapontow/yadro-go/internal/config"
-	"github.com/MikhailFerapontow/yadro-go/pkg/app"
-	"github.com/MikhailFerapontow/yadro-go/pkg/database"
-	"github.com/MikhailFerapontow/yadro-go/pkg/xkcd"
+	"github.com/MikhailFerapontow/yadro-go/internal/core/services"
 	"github.com/spf13/viper"
+)
+
+var (
+	service *services.ComicService
 )
 
 func main() {
@@ -25,13 +29,40 @@ func main() {
 
 	config.MustLoad(configPath)
 
-	db := database.NewDbApi(viper.GetString("db_file"))
-	client := xkcd.NewCLient(viper.GetString("source_url"))
-	app := app.InitApp(db, client, viper.GetInt("parallel"))
+	client := repository.NewCLient(viper.GetString("source_url"))
+	db := repository.NewDbApi(viper.GetString("db_file"))
+	stemmer := repository.InitStemmer()
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
+	service = services.NewComicService(db, stemmer, client)
 
-	app.GetComics(ctx)
-	app.Find(searchQuery, searchByIndex)
+	// db := database.NewDbApi(viper.GetString("db_file"))
+	// client := xkcd.NewCLient(viper.GetString("source_url"))
+	// app := app.InitApp(db, client, viper.GetInt("parallel"))
+
+	// ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	// defer stop()
+
+	// app.GetComics(ctx)
+	// app.Find(searchQuery, searchByIndex)
+
+	InitRoutes()
+}
+
+func InitRoutes() {
+	router := http.NewServeMux()
+
+	handler := handler.NewComicHandler(service)
+
+	router.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
+		handler.GetComics(r.Context())
+	})
+
+	router.HandleFunc("GET /pics", func(w http.ResponseWriter, r *http.Request) {
+		search := r.URL.Query().Get("search")
+		handler.Find(r.Context(), search)
+	})
+
+	if err := http.ListenAndServe(viper.GetString("server.port"), router); err != nil && err != http.ErrServerClosed {
+		fmt.Fprintf(os.Stderr, "error listening and serving: %s\n", err)
+	}
 }
