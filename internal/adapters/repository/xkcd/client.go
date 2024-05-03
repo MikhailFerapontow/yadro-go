@@ -135,22 +135,3 @@ func (c *Client) getLastId(ctx context.Context) (int, error) {
 	}
 	return l - 1, nil
 }
-
-// Deprecated: use GetLastId
-func (c *Client) getLastComicId() (int, error) {
-	query := c.url + "/info.0.json"
-	resp, err := c.httpClient.Get(query)
-	if err != nil {
-		return 0, err
-	}
-
-	defer resp.Body.Close()
-
-	var comic domain.ResponseComic
-	err = json.NewDecoder(resp.Body).Decode(&comic)
-	if err != nil {
-		return 0, err
-	}
-
-	return comic.Num, nil
-}

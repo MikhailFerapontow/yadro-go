@@ -8,17 +8,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/adapters/handler"
-	"github.com/MikhailFerapontow/yadro-go/internal/adapters/repository"
+	db "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/db"
+	stemmer "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/stemmer"
+	xkcd "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/xkcd"
 	"github.com/MikhailFerapontow/yadro-go/internal/config"
 	"github.com/MikhailFerapontow/yadro-go/internal/core/services"
 	"github.com/robfig/cron"
 	"github.com/spf13/viper"
-)
-
-var (
-	service *services.ComicService
 )
 
 func main() {
@@ -29,16 +28,16 @@ func main() {
 
 	config.MustLoad(configPath)
 
-	client := repository.NewCLient(viper.GetString("source_url"))
-	db := repository.NewDbApi(viper.GetString("db_file"))
-	stemmer := repository.InitStemmer()
+	client := xkcd.NewCLient(viper.GetString("source_url"))
+	stemmer := stemmer.InitStemmer()
+	db := db.NewDbApi(viper.GetString("db_file"))
 
-	service = services.NewComicService(db, stemmer, client)
+	service := services.NewComicService(db, stemmer, client)
 
-	InitRoutes()
+	InitRoutes(service)
 }
 
-func InitRoutes() {
+func InitRoutes(service *services.ComicService) {
 	router := http.NewServeMux()
 
 	handler := handler.NewComicHandler(service)
@@ -98,8 +97,16 @@ func InitRoutes() {
 		w.Write(jsonResponse)
 	})
 
+	server := &http.Server{
+		Addr:           ":" + viper.GetString("server.port"),
+		Handler:        router,
+		ReadTimeout:    5 * time.Second,
+		WriteTimeout:   5 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
 	go func() {
-		if err := http.ListenAndServe(viper.GetString("server.port"), router); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			fmt.Fprintf(os.Stderr, "error listening and serving: %s\n", err)
 		}
 	}()
