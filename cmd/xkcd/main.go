@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/adapters/handler"
@@ -18,6 +20,7 @@ import (
 	"github.com/MikhailFerapontow/yadro-go/internal/core/services"
 	"github.com/robfig/cron"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -34,18 +37,35 @@ func main() {
 
 	service := services.NewComicService(db, stemmer, client)
 
-	InitRoutes(service)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	InitRoutes(ctx, service)
 }
 
-func InitRoutes(service *services.ComicService) {
+func InitRoutes(mainCtx context.Context, service *services.ComicService) {
 	router := http.NewServeMux()
 
 	handler := handler.NewComicHandler(service)
 
-	handler.GetComics(context.Background()) // update on startup
+	server := &http.Server{
+		Addr:           ":" + viper.GetString("server.port"),
+		Handler:        router,
+		ReadTimeout:    5 * time.Second,
+		WriteTimeout:   5 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+		BaseContext:    func(l net.Listener) context.Context { return mainCtx },
+	}
+
+	g, gCtx := errgroup.WithContext(mainCtx)
+
+	g.Go(func() error {
+		handler.GetComics(gCtx) // update on startup
+		return nil
+	})
 
 	router.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
-		ctx, stop := signal.NotifyContext(r.Context(), os.Interrupt)
+		ctx, stop := signal.NotifyContext(r.Context(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		new, total := handler.GetComics(ctx)
 
@@ -95,30 +115,34 @@ func InitRoutes(service *services.ComicService) {
 		w.Write(jsonResponse)
 	})
 
-	server := &http.Server{
-		Addr:           ":" + viper.GetString("server.port"),
-		Handler:        router,
-		ReadTimeout:    5 * time.Second,
-		WriteTimeout:   5 * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "error listening and serving: %s\n", err)
-		}
-	}()
-
-	StartCroneJob(handler)
-}
-
-func StartCroneJob(handler *handler.ComicHandler) {
-	c := cron.New()
-
-	c.AddFunc(viper.GetString("server.cron"), func() {
-		handler.GetComics(context.Background())
+	g.Go(func() error {
+		return server.ListenAndServe()
 	})
 
-	c.Run()
-	defer c.Stop()
+	g.Go(func() error {
+		return StartCroneJob(mainCtx, handler)
+	})
+
+	g.Go(func() error {
+		<-gCtx.Done()
+		return server.Shutdown(context.Background())
+	})
+
+	if err := g.Wait(); err != nil {
+		fmt.Printf("\nGraceful shutdown: %s \n", err)
+	}
+}
+
+func StartCroneJob(ctx context.Context, handler *handler.ComicHandler) error {
+	c := cron.New()
+	c.AddFunc(viper.GetString("server.cron"), func() {
+		handler.GetComics(ctx)
+	})
+	c.Start()
+
+	<-ctx.Done()
+
+	c.Stop()
+	return ctx.Err()
+
 }
