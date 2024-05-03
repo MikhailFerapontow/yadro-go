@@ -1,5 +1,4 @@
-all:
-	go build -o xkcd ./cmd/xkcd/main.go
+all: server
 
 server:
 	go build -o xkcd-server ./cmd/xkcd/main.go
