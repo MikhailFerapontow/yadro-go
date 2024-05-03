@@ -74,8 +74,6 @@ func InitRoutes(service *services.ComicService) {
 		search := r.URL.Query().Get("search")
 		comics := handler.Find(r.Context(), search)
 
-		fmt.Println(comics)
-
 		type comicResponse struct {
 			Url string
 		}

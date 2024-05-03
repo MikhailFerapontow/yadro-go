@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/core/domain"
+	"golang.org/x/sync/errgroup"
 )
 
 type Client struct {
@@ -38,44 +39,44 @@ func (c *Client) GetComics(ctx context.Context, limit int, existing_comics map[i
 
 	var comics []domain.ResponseComic
 	mu := sync.Mutex{}
-	idchannel := make(chan int, maxId)
 
-	wg := sync.WaitGroup{}
-	wg.Add(limit)
+	g, _ := errgroup.WithContext(ctx)
+	g.SetLimit(limit)
 
-	for w := 1; w <= limit; w++ {
-		go func() {
-			defer wg.Done()
-
-			for id := range idchannel {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					if existing_comics[id] {
-						continue
-					}
-
-					comic, err := c.getComicById(ctx, id)
-					if err != nil {
-						log.Printf("Error getting comic with id = %d: %s", id, err)
-						continue
-					}
-
-					mu.Lock()
-					comics = append(comics, comic)
-					mu.Unlock()
+	for i := 1; i <= maxId; i++ {
+		select {
+		case <-ctx.Done():
+			return comics, ctx.Err()
+		default:
+			g.Go(func() error {
+				if existing_comics[i] {
+					return nil
 				}
-			}
-		}()
+
+				comic, err := c.getComicById(ctx, i)
+				if err != nil {
+					log.Printf("Error getting comic with id = %d: %s", i, err)
+
+					if comic.Num == 404 {
+						return nil // comic 404 joke
+					}
+
+					return err
+				}
+
+				mu.Lock()
+				comics = append(comics, comic)
+				mu.Unlock()
+				return nil
+			})
+		}
+
 	}
 
-	for j := 1; j <= maxId; j++ {
-		idchannel <- j
+	if err := g.Wait(); err != nil {
+		return comics, err
 	}
-	close(idchannel)
 
-	wg.Wait()
 	log.Printf("Finished fetching comics")
 	return comics, ctx.Err()
 }
