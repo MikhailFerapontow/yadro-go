@@ -1,5 +1,7 @@
-all:
-	go build -o xkcd ./cmd/xkcd/main.go
+all: server
+
+server:
+	go build -o xkcd-server ./cmd/xkcd/main.go
 
 install:
 	go mod tidy && go mod download
@@ -9,9 +11,6 @@ tidy:
 
 test:
 	go test ./...
-
-bench:
-	go
 
 clean:
 	rm xkcd

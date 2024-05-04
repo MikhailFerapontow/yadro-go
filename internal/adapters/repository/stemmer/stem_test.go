@@ -1,9 +1,9 @@
-package words
+package repository
 
 import (
 	"testing"
 
-	"github.com/MikhailFerapontow/yadro-go/models"
+	"github.com/MikhailFerapontow/yadro-go/internal/core/domain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,12 +13,12 @@ func TestStemmer(t *testing.T) {
 	tests := []struct {
 		name          string
 		initialString string
-		expectedAns   []models.WeightedWord
+		expectedAns   []domain.WeightedWord
 	}{
 		{
 			name:          "String without stop words",
 			initialString: "Follow rule",
-			expectedAns: []models.WeightedWord{
+			expectedAns: []domain.WeightedWord{
 				{Word: "follow", Count: 1},
 				{Word: "rule", Count: 1},
 			},
@@ -26,7 +26,7 @@ func TestStemmer(t *testing.T) {
 		{
 			name:          "String with stop words",
 			initialString: "Follow rule mines",
-			expectedAns: []models.WeightedWord{
+			expectedAns: []domain.WeightedWord{
 				{Word: "follow", Count: 1},
 				{Word: "rule", Count: 1},
 			},
@@ -34,7 +34,7 @@ func TestStemmer(t *testing.T) {
 		{
 			name:          "String from task",
 			initialString: "i'll follow you as long as you are following me",
-			expectedAns: []models.WeightedWord{
+			expectedAns: []domain.WeightedWord{
 				{Word: "long", Count: 1},
 				{Word: "follow", Count: 2},
 			},
@@ -42,7 +42,7 @@ func TestStemmer(t *testing.T) {
 		{
 			name:          "String with punctuation",
 			initialString: "follower, follow followers!",
-			expectedAns: []models.WeightedWord{
+			expectedAns: []domain.WeightedWord{
 				{Word: "follow", Count: 3},
 			},
 		},

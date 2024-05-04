@@ -1,4 +1,4 @@
-package words
+package repository
 
 import (
 	_ "embed"
@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/MikhailFerapontow/yadro-go/models"
+	"github.com/MikhailFerapontow/yadro-go/internal/core/domain"
 	"github.com/kljensen/snowball"
 )
 
@@ -37,7 +37,7 @@ func (s *Stemmer) trimPunctuation(target string) string {
 	return strings.Trim(target, ",.!?:;\"'()[]{}#<>*")
 }
 
-func (s *Stemmer) Stem(initialString string) []models.WeightedWord {
+func (s *Stemmer) Stem(initialString string) []domain.WeightedWord {
 	words := strings.Fields(initialString)
 	seenWords := make(map[string]int)
 
@@ -71,10 +71,10 @@ func (s *Stemmer) Stem(initialString string) []models.WeightedWord {
 	}
 	wg.Wait()
 
-	cnt := make([]models.WeightedWord, len(seenWords))
+	cnt := make([]domain.WeightedWord, len(seenWords))
 	i := 0
 	for k, v := range seenWords {
-		cnt[i] = models.WeightedWord{Word: k, Count: v}
+		cnt[i] = domain.WeightedWord{Word: k, Count: v}
 		i++
 	}
 
@@ -82,7 +82,7 @@ func (s *Stemmer) Stem(initialString string) []models.WeightedWord {
 		return cnt[i].Count > cnt[j].Count
 	})
 
-	ans := make([]models.WeightedWord, 0)
+	ans := make([]domain.WeightedWord, 0)
 	n := 10
 	for i, w := range cnt {
 		if i > n {

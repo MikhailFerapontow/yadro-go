@@ -1,4 +1,4 @@
-package database
+package repository
 
 import (
 	"encoding/json"
@@ -7,22 +7,21 @@ import (
 	"os"
 	"sort"
 
-	"github.com/MikhailFerapontow/yadro-go/models"
+	"github.com/MikhailFerapontow/yadro-go/internal/core/domain"
 )
 
 type DbApi struct {
-	filePath  string
-	indexPath string
+	filePath string
+	index    map[string][]domain.WeightedId
 }
 
 func NewDbApi(filePath string) *DbApi {
 	return &DbApi{
-		filePath:  filePath,
-		indexPath: "index.json",
+		filePath: filePath,
 	}
 }
 
-func (d *DbApi) Insert(comics []models.DbComic) {
+func (d *DbApi) Insert(comics []domain.Comic) {
 	op := "op.insert"
 
 	text, err := os.ReadFile(d.filePath)
@@ -31,7 +30,7 @@ func (d *DbApi) Insert(comics []models.DbComic) {
 		return
 	}
 
-	var dbComics []models.DbComic
+	var dbComics []domain.Comic
 	if len(text) != 0 {
 		if err := json.Unmarshal(text, &dbComics); err != nil {
 			log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
@@ -67,7 +66,7 @@ func (d *DbApi) GetExisting() map[int]bool {
 		return existingComics
 	}
 
-	var dbComics []models.DbComic
+	var dbComics []domain.Comic
 	if err := json.Unmarshal(text, &dbComics); err != nil {
 		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
 		return existingComics
@@ -89,15 +88,15 @@ func (d *DbApi) FormIndex() {
 		return
 	}
 
-	var dbComics []models.DbComic
-	if err := json.Unmarshal(text, &dbComics); err != nil {
+	var Comics []domain.Comic
+	if err := json.Unmarshal(text, &Comics); err != nil {
 		log.Printf("%s: Error unmarshaling json, file empty or with errors: %s", op, err)
 	}
 
-	index := make(map[string][]models.WeightedId)
-	for _, comic := range dbComics {
+	index := make(map[string][]domain.WeightedId)
+	for _, comic := range Comics {
 		for _, keyword := range comic.Keywords {
-			index[keyword.Word] = append(index[keyword.Word], models.WeightedId{
+			index[keyword.Word] = append(index[keyword.Word], domain.WeightedId{
 				Id:     comic.Id,
 				Url:    comic.Url,
 				Weight: keyword.Count,
@@ -105,29 +104,12 @@ func (d *DbApi) FormIndex() {
 		}
 	}
 
-	result := make([]models.KwIndex, len(index))
-	i := 0
-	for k, v := range index {
-		result[i] = models.KwIndex{
-			Keyword: k,
-			Ids:     v,
-		}
-		i++
-	}
+	d.index = index
 
-	f, err := os.Create(d.indexPath)
-	if err != nil {
-		log.Printf("%s: Error creating file: %s", op, err)
-		return
-	}
-	defer f.Close()
-
-	bytes, _ := json.MarshalIndent(result, "", " ")
-	os.WriteFile(d.indexPath, bytes, 0644)
 	log.Printf("%s: Successfully created index", op)
 }
 
-func (d *DbApi) Find(search []models.WeightedWord) ([]models.DbComic, error) {
+func (d *DbApi) FindInDb(search []domain.WeightedWord) ([]domain.Comic, error) {
 	op := "op.find"
 
 	text, err := os.ReadFile(d.filePath)
@@ -135,7 +117,7 @@ func (d *DbApi) Find(search []models.WeightedWord) ([]models.DbComic, error) {
 		return nil, fmt.Errorf("%s: %s", op, err)
 	}
 
-	var dbComics []models.DbComic
+	var dbComics []domain.Comic
 	if err := json.Unmarshal(text, &dbComics); err != nil {
 		return nil, fmt.Errorf("%s: %s", op, err)
 	}
@@ -174,35 +156,19 @@ func (d *DbApi) Find(search []models.WeightedWord) ([]models.DbComic, error) {
 		return idSimilarity[i].Similarity > idSimilarity[j].Similarity
 	})
 
-	var foundComics []models.DbComic
+	var foundComics []domain.Comic
 	for i := 0; i < 10; i++ {
 		if idSimilarity[i].Similarity == 0 {
 			break
 		}
-		foundComics = append(foundComics, models.DbComic{
+		foundComics = append(foundComics, domain.Comic{
 			Url: idSimilarity[i].Url,
 		})
 	}
 	return foundComics, nil
 }
 
-func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, error) {
-	op := "op.find_by_index"
-
-	text, err := os.ReadFile(d.indexPath)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %s", op, err)
-	}
-
-	var index []models.KwIndex
-	if err := json.Unmarshal(text, &index); err != nil {
-		return nil, fmt.Errorf("%s: %s", op, err)
-	}
-
-	kwIndex := make(map[string][]models.WeightedId)
-	for _, kw := range index {
-		kwIndex[kw.Keyword] = kw.Ids
-	}
+func (d *DbApi) Find(search []domain.WeightedWord) []domain.Comic {
 
 	type comicSimilarity struct {
 		Url        string
@@ -210,28 +176,27 @@ func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, err
 	}
 
 	found := make(map[int]comicSimilarity)
-	for _, word := range search {
-		ids, ok := kwIndex[word.Word]
+	for _, kw := range search {
+		ids, ok := d.index[kw.Word]
 
 		if !ok {
 			continue
 		}
 
-		for _, weightedId := range ids {
-			val, ok := found[weightedId.Id]
+		for _, comic := range ids {
+			val, ok := found[comic.Id]
 
 			if !ok {
-				found[weightedId.Id] = comicSimilarity{
-					Url:        weightedId.Url,
-					Similarity: weightedId.Weight * word.Count,
+				found[comic.Id] = comicSimilarity{
+					Url:        comic.Url,
+					Similarity: kw.Count * comic.Weight,
 				}
-
 				continue
 			}
 
-			found[weightedId.Id] = comicSimilarity{
-				Url:        weightedId.Url,
-				Similarity: val.Similarity + weightedId.Weight*word.Count,
+			found[comic.Id] = comicSimilarity{
+				Url:        val.Url,
+				Similarity: val.Similarity + kw.Count*comic.Weight,
 			}
 		}
 	}
@@ -246,17 +211,17 @@ func (d *DbApi) FindByIndex(search []models.WeightedWord) ([]models.DbComic, err
 	})
 
 	i := 10
-	var result []models.DbComic
+	var result []domain.Comic
 	for _, comic := range comicsSimilarity {
 		if i == 0 {
 			break
 		}
 		i--
 
-		result = append(result, models.DbComic{
+		result = append(result, domain.Comic{
 			Url: comic.Url,
 		})
 	}
 
-	return result, nil
+	return result
 }
