@@ -1,1 +1,1 @@
-DROP VIEW kw_comic;
+DROP VIEW IF EXISTS kw_comic;

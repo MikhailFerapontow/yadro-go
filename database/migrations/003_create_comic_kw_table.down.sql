@@ -1,1 +1,1 @@
-DROP TABLE comic_keyword;
+DROP TABLE IF EXISTS comic_keyword;

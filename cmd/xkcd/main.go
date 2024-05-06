@@ -35,12 +35,19 @@ func main() {
 
 	client := xkcd.NewCLient(viper.GetString("source_url"))
 	stemmer := stemmer.InitStemmer()
-	// db := db.NewDbApi(viper.GetString("db_file"))
+
 	db, err := sqlite.NewSqliteDB()
 	if err != nil {
 		log.Fatalf("db initialization failed with %s", err)
 	}
 	defer db.Close()
+
+	err = sqlite.RunMigrations(db)
+	if err != nil {
+		log.Fatalf("migrations failed with %s", err)
+	}
+	log.Printf("migrations successful")
+
 	api := sqlite.NewApiSqlite(db)
 
 	service := services.NewComicService(api, stemmer, client)

@@ -1,1 +1,1 @@
-DROP TABLE Comic;
+DROP TABLE IF EXISTS Comic;

@@ -1,1 +1,1 @@
-DROP TABLE Keyword;
+DROP TABLE IF EXISTS Keyword;
