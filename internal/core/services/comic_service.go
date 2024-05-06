@@ -27,19 +27,22 @@ func NewComicService(
 }
 
 func (s *ComicService) GetComics(ctx context.Context, limit int) (int, int) {
-	existingComics := s.dbRepo.GetExisting()
+	existingComics := s.dbRepo.GetExisting(ctx)
 	comics, err := s.client.GetComics(ctx, limit, existingComics)
 	if err != nil {
 		log.Printf("Error getting comics: %s", err)
 	}
 
-	s.dbRepo.Insert(s.stemComics(comics))
-	s.dbRepo.FormIndex()
+	if len(comics) != 0 {
+		s.dbRepo.Insert(ctx, s.stemComics(comics))
+		// s.dbRepo.FormIndex()
+		log.Printf("Succesfully inserted %d new comics", len(comics))
+	}
 
 	return len(comics), len(comics) + len(existingComics)
 }
 
-func (s *ComicService) Find(searchInput string) []domain.Comic {
+func (s *ComicService) Find(ctx context.Context, searchInput string) []domain.Comic {
 	if len(searchInput) == 0 {
 		return nil
 	}
@@ -47,7 +50,7 @@ func (s *ComicService) Find(searchInput string) []domain.Comic {
 	log.Println("Start search")
 	search := s.stemmerRepo.Stem(searchInput)
 
-	return s.dbRepo.Find(search)
+	return s.dbRepo.Find(ctx, search)
 }
 
 func (s *ComicService) stemComics(response_comics []domain.ResponseComic) []domain.Comic {

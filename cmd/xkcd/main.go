@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -13,7 +14,8 @@ import (
 	"time"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/adapters/handler"
-	db "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/db"
+	// db "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/db"
+	"github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/db/sqlite"
 	stemmer "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/stemmer"
 	xkcd "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/xkcd"
 	"github.com/MikhailFerapontow/yadro-go/internal/config"
@@ -33,9 +35,15 @@ func main() {
 
 	client := xkcd.NewCLient(viper.GetString("source_url"))
 	stemmer := stemmer.InitStemmer()
-	db := db.NewDbApi(viper.GetString("db_file"))
+	// db := db.NewDbApi(viper.GetString("db_file"))
+	db, err := sqlite.NewSqliteDB()
+	if err != nil {
+		log.Fatalf("db initialization failed with %s", err)
+	}
+	defer db.Close()
+	api := sqlite.NewApiSqlite(db)
 
-	service := services.NewComicService(db, stemmer, client)
+	service := services.NewComicService(api, stemmer, client)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
