@@ -1,0 +1,27 @@
+@startuml
+left to right direction
+hide circle
+
+entity comic {
+    * id : INTEGER <<PK>>
+    --
+    * url : TEXT
+}
+
+entity keyword {
+    * id : INTEGER <<PK>>
+    --
+    * word : TEXT UNIQUE
+}
+
+entity comic_keyword {
+    * id INTEGER <<PK>>
+    --
+    comic_id INTEGER <<FK>>
+    word_id INTEGER <<FK>>
+    weight INTEGER
+}
+
+comic ||--o{ comic_keyword
+keyword ||--o{ comic_keyword
+@enduml
