@@ -191,7 +191,6 @@ func (a *ApiSqlite) Find(ctx context.Context, search []domain.WeightedWord) []do
 				log.Printf("%s: %s", op, err)
 				return nil
 			}
-			log.Printf("comic_id: %d, url: %s, weight: %d", comic_id, url, weight)
 
 			val, ok := found[comic_id]
 			if !ok {

@@ -78,7 +78,7 @@ func (c *Client) GetComics(ctx context.Context, limit int, existing_comics map[i
 	}
 
 	log.Printf("Finished fetching comics")
-	return comics, ctx.Err()
+	return comics, nil
 }
 
 func (c *Client) getComicById(ctx context.Context, id int) (domain.ResponseComic, error) {

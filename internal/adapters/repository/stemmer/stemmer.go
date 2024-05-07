@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/core/domain"
 	"github.com/kljensen/snowball"
@@ -38,7 +39,9 @@ func (s *Stemmer) trimPunctuation(target string) string {
 }
 
 func (s *Stemmer) Stem(initialString string) []domain.WeightedWord {
-	words := strings.Fields(initialString)
+	words := strings.FieldsFunc(initialString, func(r rune) bool {
+		return unicode.IsSpace(r) || unicode.IsPunct(r)
+	})
 	seenWords := make(map[string]int)
 
 	wg := sync.WaitGroup{}

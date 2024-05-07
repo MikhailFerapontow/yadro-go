@@ -80,9 +80,7 @@ func InitRoutes(mainCtx context.Context, service *services.ComicService) {
 	})
 
 	router.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
-		ctx, stop := signal.NotifyContext(r.Context(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-		new, total := handler.GetComics(ctx)
+		new, total := handler.GetComics(r.Context())
 
 		type comicsResponse struct {
 			New   int `json:"new"`
