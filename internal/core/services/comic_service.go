@@ -49,7 +49,6 @@ func (s *ComicService) Find(ctx context.Context, searchInput string) []domain.Co
 
 	log.Println("Start search")
 	search := s.stemmerRepo.Stem(searchInput)
-	log.Printf("%+v\n", search)
 
 	return s.dbRepo.Find(ctx, search)
 }

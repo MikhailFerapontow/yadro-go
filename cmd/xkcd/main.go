@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -63,8 +64,11 @@ func InitRoutes(mainCtx context.Context, service *services.ComicService) {
 
 	handler := handler.NewComicHandler(service)
 
+	port := checkPort(viper.GetInt("server.port"))
+	log.Printf("Listening on port %d", port)
+
 	server := &http.Server{
-		Addr:           ":" + viper.GetString("server.port"),
+		Addr:           ":" + strconv.Itoa(port),
 		Handler:        router,
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   5 * time.Second,
@@ -157,5 +161,25 @@ func StartCroneJob(ctx context.Context, handler *handler.ComicHandler) error {
 
 	c.Stop()
 	return ctx.Err()
+}
 
+// Check if given port is availiable
+// If not, return first available port
+func checkPort(port int) int {
+	host := "127.0.0.1" // TODO: make configurable
+
+	conn, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
+	if err != nil {
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer listener.Close()
+		newPort := listener.Addr().(*net.TCPAddr).Port
+		fmt.Printf("Port %d is not available, using %d instead\n", port, newPort)
+		return newPort
+	}
+	defer conn.Close()
+
+	return port
 }
