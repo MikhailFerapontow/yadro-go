@@ -23,5 +23,5 @@ func (h *ComicHandler) GetComics(ctx context.Context) (int, int) {
 }
 
 func (h *ComicHandler) Find(ctx context.Context, searchInput string) []domain.Comic {
-	return h.svc.Find(searchInput)
+	return h.svc.Find(ctx, searchInput)
 }

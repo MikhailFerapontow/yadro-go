@@ -6,3 +6,6 @@ server:
   port: 8080
   # sec min hour day month year
   cron: "0 0 * * * *" # run every hour
+
+database:
+  dsn: "file:./database/db.db?mode=rwc"

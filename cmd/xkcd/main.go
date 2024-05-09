@@ -5,15 +5,18 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/MikhailFerapontow/yadro-go/internal/adapters/handler"
-	db "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/db"
+	// db "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/db"
+	"github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/db/sqlite"
 	stemmer "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/stemmer"
 	xkcd "github.com/MikhailFerapontow/yadro-go/internal/adapters/repository/xkcd"
 	"github.com/MikhailFerapontow/yadro-go/internal/config"
@@ -33,9 +36,22 @@ func main() {
 
 	client := xkcd.NewCLient(viper.GetString("source_url"))
 	stemmer := stemmer.InitStemmer()
-	db := db.NewDbApi(viper.GetString("db_file"))
 
-	service := services.NewComicService(db, stemmer, client)
+	db, err := sqlite.NewSqliteDB()
+	if err != nil {
+		log.Fatalf("db initialization failed with %s", err)
+	}
+	defer db.Close()
+
+	err = sqlite.RunMigrations(db)
+	if err != nil {
+		log.Fatalf("migrations failed with %s", err)
+	}
+	log.Printf("migrations successful")
+
+	api := sqlite.NewApiSqlite(db)
+
+	service := services.NewComicService(api, stemmer, client)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -48,8 +64,11 @@ func InitRoutes(mainCtx context.Context, service *services.ComicService) {
 
 	handler := handler.NewComicHandler(service)
 
+	port := checkPort(viper.GetInt("server.port"))
+	log.Printf("Listening on port %d", port)
+
 	server := &http.Server{
-		Addr:           ":" + viper.GetString("server.port"),
+		Addr:           ":" + strconv.Itoa(port),
 		Handler:        router,
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   5 * time.Second,
@@ -65,9 +84,7 @@ func InitRoutes(mainCtx context.Context, service *services.ComicService) {
 	})
 
 	router.HandleFunc("POST /update", func(w http.ResponseWriter, r *http.Request) {
-		ctx, stop := signal.NotifyContext(r.Context(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
-		new, total := handler.GetComics(ctx)
+		new, total := handler.GetComics(r.Context())
 
 		type comicsResponse struct {
 			New   int `json:"new"`
@@ -144,5 +161,25 @@ func StartCroneJob(ctx context.Context, handler *handler.ComicHandler) error {
 
 	c.Stop()
 	return ctx.Err()
+}
 
+// Check if given port is availiable
+// If not, return first available port
+func checkPort(port int) int {
+	host := "127.0.0.1" // TODO: make configurable
+
+	conn, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
+	if err != nil {
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer listener.Close()
+		newPort := listener.Addr().(*net.TCPAddr).Port
+		fmt.Printf("Port %d is not available, using %d instead\n", port, newPort)
+		return newPort
+	}
+	defer conn.Close()
+
+	return port
 }

@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS Comic
+(
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    url         TEXT
+);
